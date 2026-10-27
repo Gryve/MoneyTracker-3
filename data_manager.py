@@ -94,7 +94,17 @@ def _init_db():
     cursor.execute("""
         CREATE INDEX IF NOT EXISTS idx_transactions_category ON transactions(category)
     """)
-    
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS budgets (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            year INTEGER NOT NULL,
+            category TEXT NOT NULL,
+            amount REAL NOT NULL CHECK(amount >= 0),
+            UNIQUE(year, category)
+        )
+    """)
+
     cursor.execute("SELECT COUNT(*) FROM categories")
     if cursor.fetchone()[0] == 0:
         for cat in DEFAULT_EXPENSE_CATEGORIES:
@@ -186,9 +196,67 @@ def save_categories(categories: dict):
         cursor.execute("INSERT INTO categories (name, type) VALUES (?, 'expense')", (cat,))
     for cat in categories.get("income", []):
         cursor.execute("INSERT INTO categories (name, type) VALUES (?, 'income')", (cat,))
-    
+
+    # Remove budgets of deleted categories
+    cursor.execute(
+        "DELETE FROM budgets WHERE category NOT IN (SELECT name FROM categories)"
+    )
+
     conn.commit()
     conn.close()
+
+
+def load_budgets(year: int) -> dict:
+    """Load annual budgets for a year. Returns {category: amount}."""
+    _ensure_initialized()
+    conn = _get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT category, amount FROM budgets WHERE year = ?", (year,))
+    result = {row[0]: row[1] for row in cursor.fetchall()}
+
+    conn.close()
+    return result
+
+
+def save_year_budgets(year: int, budgets: dict):
+    """Save annual budgets for a year (replaces existing)."""
+    _ensure_initialized()
+    conn = _get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("DELETE FROM budgets WHERE year = ?", (year,))
+
+    for category, amount in budgets.items():
+        if amount is None or amount <= 0:
+            continue
+        cursor.execute(
+            "INSERT INTO budgets (year, category, amount) VALUES (?, ?, ?)",
+            (year, category, round(amount, 2)),
+        )
+
+    conn.commit()
+    conn.close()
+
+
+def get_annual_summary(year: int) -> dict:
+    """Get summary statistics for a full year."""
+    _ensure_initialized()
+    conn = _get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT category, SUM(amount) FROM transactions
+        WHERE type = 'expense' AND substr(date, 1, 4) = ?
+        GROUP BY category
+    """, (f"{year:04d}",))
+    category_expenses = {row[0]: row[1] for row in cursor.fetchall()}
+
+    conn.close()
+    return {
+        "total_expense": round(sum(category_expenses.values()), 2),
+        "category_expenses": {k: round(v, 2) for k, v in category_expenses.items()},
+    }
 
 
 def load_transactions() -> list[dict]:

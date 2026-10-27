@@ -41,6 +41,9 @@ class MoneyTrackerApp(ctk.CTk):
         # Year overview
         self._view_year = today.year
 
+        # Budgets view
+        self._budget_year = today.year
+
         # Build UI
         self._build_sidebar()
         self._build_main_area()
@@ -94,6 +97,7 @@ class MoneyTrackerApp(ctk.CTk):
             ("📊", "Dashboard", "dashboard"),
             ("📝", "Transactions", "transactions"),
             ("📅", "Calendar", "calendar"),
+            ("🎯", "Budgets", "budgets"),
             ("📆", "Year Overview", "year"),
         ]
 
@@ -189,12 +193,15 @@ class MoneyTrackerApp(ctk.CTk):
         self._transactions_frame = ctk.CTkFrame(self._main_container, fg_color="transparent")
         # Calendar view
         self._calendar_frame = ctk.CTkFrame(self._main_container, fg_color="transparent")
+        # Budgets view
+        self._budgets_frame = ctk.CTkFrame(self._main_container, fg_color="transparent")
         # Year overview view
         self._year_frame = ctk.CTkFrame(self._main_container, fg_color="transparent")
 
         self._build_dashboard()
         self._build_transactions()
         self._build_calendar()
+        self._build_budgets()
         self._build_year()
 
         # Show dashboard by default
@@ -265,6 +272,36 @@ class MoneyTrackerApp(ctk.CTk):
             icon="💰", accent_color=ACCENT_BLUE
         )
         self._stat_balance.grid(row=0, column=2, sticky="nsew", padx=5, pady=5)
+
+        # Annual budget summary card
+        self._dash_budget_card = ctk.CTkFrame(
+            scroll, fg_color=BG_CARD, corner_radius=CORNER_RADIUS,
+            border_width=1, border_color=BORDER_COLOR
+        )
+        self._dash_budget_card.pack(fill="x", padx=25, pady=(15, 0))
+
+        db_inner = ctk.CTkFrame(self._dash_budget_card, fg_color="transparent")
+        db_inner.pack(fill="both", expand=True, padx=CARD_PADDING, pady=14)
+
+        db_left = ctk.CTkFrame(db_inner, fg_color="transparent")
+        db_left.pack(side="left")
+
+        ctk.CTkLabel(
+            db_left, text="🎯", font=(FONT_FAMILY, 18), text_color=ACCENT_BLUE
+        ).pack(anchor="w")
+
+        self._dash_budget_title = ctk.CTkLabel(
+            db_left, text="Annual Budget", font=FONT_SMALL, text_color=TEXT_SECONDARY
+        )
+        self._dash_budget_title.pack(anchor="w", pady=(2, 0))
+
+        self._dash_budget_value = ctk.CTkLabel(
+            db_inner, text="", font=FONT_BODY_BOLD, text_color=TEXT_PRIMARY
+        )
+        self._dash_budget_value.pack(side="right")
+
+        self._dash_budget_bar = ctk.CTkProgressBar(db_inner, height=14, corner_radius=7)
+        self._dash_budget_bar.pack(side="left", fill="x", expand=True, padx=(20, 20))
 
         # Charts section
         charts_frame = ctk.CTkFrame(scroll, fg_color="transparent")
@@ -424,6 +461,83 @@ class MoneyTrackerApp(ctk.CTk):
         self._year_months_frame = ctk.CTkFrame(scroll, fg_color="transparent")
         self._year_months_frame.pack(fill="x", pady=10)
 
+    # ── Budgets ───────────────────────────────
+    def _build_budgets(self):
+        nav = ctk.CTkFrame(self._budgets_frame, fg_color="transparent")
+        nav.pack(fill="x", padx=30, pady=(25, 15))
+
+        ctk.CTkLabel(
+            nav, text="Budgets",
+            font=FONT_HEADING_XL, text_color=TEXT_PRIMARY
+        ).pack(side="left")
+
+        nav_buttons = ctk.CTkFrame(nav, fg_color="transparent")
+        nav_buttons.pack(side="right")
+
+        ctk.CTkButton(
+            nav_buttons, text="◀", width=40, height=36,
+            fg_color=BG_SECONDARY, hover_color=BG_HOVER,
+            text_color=TEXT_PRIMARY, corner_radius=8,
+            font=FONT_BODY_BOLD,
+            command=self._prev_budget_year
+        ).pack(side="left", padx=2)
+
+        self._budget_year_label = ctk.CTkLabel(
+            nav_buttons, text="", font=FONT_SUBHEADING,
+            text_color=TEXT_PRIMARY, width=120
+        )
+        self._budget_year_label.pack(side="left", padx=10)
+
+        ctk.CTkButton(
+            nav_buttons, text="▶", width=40, height=36,
+            fg_color=BG_SECONDARY, hover_color=BG_HOVER,
+            text_color=TEXT_PRIMARY, corner_radius=8,
+            font=FONT_BODY_BOLD,
+            command=self._next_budget_year
+        ).pack(side="left", padx=2)
+
+        # Total summary card
+        self._budget_summary = ctk.CTkFrame(
+            self._budgets_frame, fg_color=BG_CARD, corner_radius=CORNER_RADIUS,
+            border_width=1, border_color=BORDER_COLOR
+        )
+        self._budget_summary.pack(fill="x", padx=25, pady=(0, 15))
+
+        bs_inner = ctk.CTkFrame(self._budget_summary, fg_color="transparent")
+        bs_inner.pack(fill="both", expand=True, padx=CARD_PADDING, pady=16)
+
+        bs_left = ctk.CTkFrame(bs_inner, fg_color="transparent")
+        bs_left.pack(side="left")
+
+        ctk.CTkLabel(
+            bs_left, text="🎯", font=(FONT_FAMILY, 20), text_color=ACCENT_BLUE
+        ).pack(anchor="w")
+
+        self._budget_summary_title = ctk.CTkLabel(
+            bs_left, text="Total Annual Budget", font=FONT_SMALL,
+            text_color=TEXT_SECONDARY
+        )
+        self._budget_summary_title.pack(anchor="w", pady=(3, 0))
+
+        self._budget_summary_value = ctk.CTkLabel(
+            bs_inner, text="", font=FONT_AMOUNT_SMALL, text_color=TEXT_PRIMARY
+        )
+        self._budget_summary_value.pack(side="right")
+
+        self._budget_summary_bar = ctk.CTkProgressBar(bs_inner, height=16, corner_radius=8)
+        self._budget_summary_bar.pack(side="left", fill="x", expand=True, padx=(20, 20))
+
+        # Category list (scrollable)
+        scroll = ctk.CTkScrollableFrame(
+            self._budgets_frame, fg_color="transparent",
+            scrollbar_button_color=BG_HOVER,
+            scrollbar_button_hover_color=ACCENT_BLUE_DIM
+        )
+        scroll.pack(fill="both", expand=True, padx=25, pady=(0, 20))
+
+        self._budget_list_frame = ctk.CTkFrame(scroll, fg_color="transparent")
+        self._budget_list_frame.pack(fill="x", pady=10)
+
     # ══════════════════════════════════════════
     #  NAVIGATION
     # ══════════════════════════════════════════
@@ -439,6 +553,7 @@ class MoneyTrackerApp(ctk.CTk):
         self._dashboard_frame.pack_forget()
         self._transactions_frame.pack_forget()
         self._calendar_frame.pack_forget()
+        self._budgets_frame.pack_forget()
         self._year_frame.pack_forget()
 
         if view == "dashboard":
@@ -447,6 +562,8 @@ class MoneyTrackerApp(ctk.CTk):
             self._transactions_frame.pack(fill="both", expand=True)
         elif view == "calendar":
             self._calendar_frame.pack(fill="both", expand=True)
+        elif view == "budgets":
+            self._budgets_frame.pack(fill="both", expand=True)
         elif view == "year":
             self._year_frame.pack(fill="both", expand=True)
 
@@ -460,6 +577,7 @@ class MoneyTrackerApp(ctk.CTk):
         self._refresh_dashboard()
         self._refresh_transactions()
         self._refresh_calendar()
+        self._refresh_budgets()
         self._refresh_day_detail()
         self._refresh_year()
 
@@ -498,6 +616,26 @@ class MoneyTrackerApp(ctk.CTk):
         # Pie charts
         self._expense_chart.set_data(summary.get("category_expenses", {}))
         self._income_chart.set_data(summary.get("category_income", {}))
+
+        # Annual budget summary card
+        dash_budgets = data_manager.load_budgets(self._dash_year)
+        total_dash_budget = sum(dash_budgets.values())
+        annual = data_manager.get_annual_summary(self._dash_year)
+        spent = annual["total_expense"]
+
+        self._dash_budget_title.configure(text=f"Annual Budget {self._dash_year}")
+        if total_dash_budget > 0:
+            progress, color = self._budget_progress(spent, total_dash_budget)
+            value_text = f"€{spent:.2f} / €{total_dash_budget:.2f}"
+            value_color = ACCENT_RED if spent > total_dash_budget else TEXT_PRIMARY
+        else:
+            progress, color = 0.0, ACCENT_BLUE
+            value_text = "No budgets set"
+            value_color = TEXT_MUTED
+
+        self._dash_budget_bar.set(progress)
+        self._dash_budget_bar.configure(progress_color=color)
+        self._dash_budget_value.configure(text=value_text, text_color=value_color)
 
     def _refresh_transactions(self):
         year = self._dash_year
@@ -801,6 +939,170 @@ class MoneyTrackerApp(ctk.CTk):
                 inner, text=balance_text, font=FONT_BODY_BOLD,
                 text_color=balance_color
             ).pack(side="right")
+
+    # ── Budgets refresh / actions ─────────────
+    def _refresh_budgets(self):
+        self._budget_year_label.configure(text=str(self._budget_year))
+
+        budgets = data_manager.load_budgets(self._budget_year)
+        annual = data_manager.get_annual_summary(self._budget_year)
+        total_budget = sum(budgets.values())
+        spent_total = annual["total_expense"]
+
+        # Total summary card
+        self._budget_summary_title.configure(text=f"Total Annual Budget {self._budget_year}")
+        if total_budget > 0:
+            progress, color = self._budget_progress(spent_total, total_budget)
+            value_text = f"€{spent_total:.2f} / €{total_budget:.2f}"
+            value_color = ACCENT_RED if spent_total > total_budget else TEXT_PRIMARY
+        else:
+            progress, color = 0.0, ACCENT_BLUE
+            value_text = "No budgets set"
+            value_color = TEXT_MUTED
+
+        self._budget_summary_bar.set(progress)
+        self._budget_summary_bar.configure(progress_color=color)
+        self._budget_summary_value.configure(text=value_text, text_color=value_color)
+
+        # Category rows
+        for w in self._budget_list_frame.winfo_children():
+            w.destroy()
+
+        categories = data_manager.load_categories().get("expense", [])
+        if not categories:
+            ctk.CTkLabel(
+                self._budget_list_frame,
+                text="No expense categories. Add some via Manage Categories.",
+                font=FONT_BODY, text_color=TEXT_MUTED
+            ).pack(pady=30)
+            return
+
+        for cat_name in categories:
+            spent = annual["category_expenses"].get(cat_name, 0.0)
+            self._build_budget_row(cat_name, spent, budgets.get(cat_name))
+
+    def _budget_progress(self, spent: float, budget: float):
+        """Return (progress 0-1, bar color) for an amount vs its budget."""
+        if budget <= 0:
+            return 0.0, ACCENT_BLUE
+        pct = spent / budget * 100
+        progress = min(pct, 100) / 100
+        if pct < 75:
+            color = ACCENT_BLUE
+        elif pct <= 100:
+            color = ACCENT_ORANGE
+        else:
+            color = ACCENT_RED
+        return progress, color
+
+    def _build_budget_row(self, cat_name: str, spent: float, budget):
+        row = ctk.CTkFrame(
+            self._budget_list_frame, fg_color=BG_SECONDARY, corner_radius=8
+        )
+        row.pack(fill="x", pady=3)
+
+        inner = ctk.CTkFrame(row, fg_color="transparent")
+        inner.pack(fill="x", padx=15, pady=10)
+
+        # Category name (left)
+        ctk.CTkLabel(
+            inner, text=cat_name, font=FONT_BODY_BOLD,
+            text_color=TEXT_PRIMARY, width=200, anchor="w"
+        ).pack(side="left")
+
+        if budget is None:
+            ctk.CTkButton(
+                inner, text="+ Set budget", width=110, height=30,
+                fg_color=ACCENT_BLUE_DIM, hover_color=ACCENT_BLUE,
+                text_color=ACCENT_BLUE, font=FONT_SMALL, corner_radius=6,
+                command=lambda: self._start_budget_edit(inner, cat_name, None)
+            ).pack(side="right")
+
+            ctk.CTkLabel(
+                inner, text=f"-€{spent:.2f} spent",
+                font=FONT_SMALL, text_color=TEXT_MUTED
+            ).pack(side="right", padx=(0, 10))
+        else:
+            progress, color = self._budget_progress(spent, budget)
+
+            ctk.CTkButton(
+                inner, text="✎", width=32, height=30,
+                fg_color=BG_HOVER, hover_color=ACCENT_BLUE_DIM,
+                text_color=TEXT_SECONDARY, font=FONT_SMALL, corner_radius=6,
+                command=lambda: self._start_budget_edit(inner, cat_name, budget)
+            ).pack(side="right")
+
+            if spent > budget:
+                status_text = f"over by €{spent - budget:.2f}"
+                status_color = ACCENT_RED
+            else:
+                status_text = f"€{budget - spent:.2f} left"
+                status_color = ACCENT_GREEN
+            ctk.CTkLabel(
+                inner, text=status_text, font=FONT_SMALL, text_color=status_color
+            ).pack(side="right", padx=(0, 10))
+
+            ctk.CTkLabel(
+                inner, text=f"€{spent:.2f} / €{budget:.2f}",
+                font=FONT_BODY_BOLD, text_color=TEXT_PRIMARY
+            ).pack(side="right")
+
+            bar = ctk.CTkProgressBar(inner, height=12, corner_radius=6)
+            bar.set(progress)
+            bar.configure(progress_color=color)
+            bar.pack(side="left", fill="x", expand=True, padx=(20, 15))
+
+    def _start_budget_edit(self, inner, cat_name: str, current):
+        if getattr(self, "_budget_edit_active", False):
+            return
+        self._budget_edit_active = True
+
+        entry = ctk.CTkEntry(
+            inner, width=140, height=30, font=FONT_BODY,
+            fg_color=BG_INPUT, border_color=BORDER_FOCUS, text_color=TEXT_PRIMARY,
+            corner_radius=6, border_width=1, placeholder_text="Budget (€)"
+        )
+        if current is not None:
+            entry.insert(0, f"{current:.2f}")
+        entry.pack(side="right", padx=(8, 0))
+        entry.focus_set()
+
+        def finish():
+            self._budget_edit_active = False
+            self._refresh_budgets()
+
+        def save(_event=None):
+            text = entry.get().strip().replace(",", ".")
+            try:
+                value = float(text) if text else 0.0
+            except ValueError:
+                entry.configure(border_color=ACCENT_RED)
+                return
+            if value < 0:
+                entry.configure(border_color=ACCENT_RED)
+                return
+
+            budgets = data_manager.load_budgets(self._budget_year)
+            if value > 0:
+                budgets[cat_name] = round(value, 2)
+            else:
+                budgets.pop(cat_name, None)
+            data_manager.save_year_budgets(self._budget_year, budgets)
+            finish()
+
+        def cancel(_event=None):
+            finish()
+
+        entry.bind("<Return>", save)
+        entry.bind("<Escape>", cancel)
+
+    def _prev_budget_year(self):
+        self._budget_year -= 1
+        self._refresh_budgets()
+
+    def _next_budget_year(self):
+        self._budget_year += 1
+        self._refresh_budgets()
 
     def _open_add_transaction(self):
         AddTransactionDialog(self, on_save=self._refresh_all)
